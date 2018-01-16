@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"github.com/Luxurioust/excelize"
 	"ygcOffice/process"
-	"time"
 	"ygcOffice/foreachDir"
 	"strings"
 )
@@ -36,6 +35,7 @@ func main() {
 
 	cfg, err := config.ReadDefault(*configFile)
 	if err != nil {
+		log.Fatal(err)
 		log.Println("没有发现操作配置文件，已经产生了一个默认操作配置文件config.ini，请查看config.ini文件的配置说明进行配置。")
 		cfg = config.NewDefault()
 		cfg.AddSection(define.KEY_SECTION_DEMO)
@@ -139,9 +139,9 @@ func main() {
 
 	dstxlsx.Save()
 
-	stop:= time.NewTimer(time.Second)
-	<- stop.C
-	stop.Stop()
+	//stop:= time.NewTimer(time.Second)
+	//<- stop.C
+	//stop.Stop()
 	println("程序处理完成，按任意键退出……")
 	var onkey string
 	fmt.Scanln(onkey)
