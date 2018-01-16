@@ -177,6 +177,8 @@ func (this *YgcOfficeProcess) ProcessOption(cfg *config.Config, section string) 
 			this.processSore(cfg, section)
 		} else if process == define.KEY_VALUE_limt {
 			this.processLimt(cfg, section)
+		} else if process == define.KEY_VALUE_reset {
+			this.processReset(cfg, section)
 		} else {
 			panic("process 读取操作报错：" + process)
 		}
@@ -802,6 +804,16 @@ func (this *YgcOfficeProcess) processLimt(cfg *config.Config, section string) {
 	}else{
 		panic("未设置排序字段")
 	}
+}
+func (this *YgcOfficeProcess) processReset(cfg *config.Config, section string) {
+	cur:= this.target
+	this.ProcessTarget(define.KEY_VALUE_src)
+	this.target.X,this.target.Xs,this.target.Xe=0,0,0
+	this.target.Y,this.target.Ys,this.target.Ye=0,0,0
+	this.ProcessTarget(define.KEY_VALUE_dst)
+	this.target.X,this.target.Xs,this.target.Xe=0,0,0
+	this.target.Y,this.target.Ys,this.target.Ye=0,0,0
+	this.target=cur
 }
 
 //func (this *YgcOfficeProcess) processWriteItem(cfg *config.Config, section string) {

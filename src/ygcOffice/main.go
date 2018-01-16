@@ -17,6 +17,7 @@ import (
 	"ygcOffice/process"
 	"ygcOffice/foreachDir"
 	"strings"
+	"time"
 )
 
 var (
@@ -116,6 +117,8 @@ func main() {
 		srcFile=*psrcFile
 	}
 
+	startTime:=time.Now()
+
 	if srcFile!="dir" {
 		if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
 			println(err)
@@ -142,7 +145,8 @@ func main() {
 	//stop:= time.NewTimer(time.Second)
 	//<- stop.C
 	//stop.Stop()
-	println("程序处理完成，按任意键退出……")
+	waitTime:= time.Now().Sub(startTime)
+	fmt.Printf("耗时 %s 程序处理完成，按任意键退出……",waitTime)
 	var onkey string
 	fmt.Scanln(onkey)
 }
