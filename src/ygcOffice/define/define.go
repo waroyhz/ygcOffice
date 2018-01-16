@@ -46,6 +46,8 @@ const (
 	KEY_VALUE_int             ="int"
 	KEY_VALUE_date            ="date"
 	KEY_VALUE_sum             ="sum"
+	KEY_VALUE_sore             ="sore"
+	KEY_VALUE_limt             ="limt"
 	KEY_VALUE_print           ="print"
 	KEY_VALUE_compny          ="$compny"
 )

@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"github.com/Luxurioust/excelize"
 	"errors"
+	"sort"
 )
 
 type YgcOfficeProcess struct {
@@ -172,6 +173,10 @@ func (this *YgcOfficeProcess) ProcessOption(cfg *config.Config, section string) 
 			this.processReadItem(cfg, section)
 		} else if process == define.KEY_VALUE_sum {
 			this.processSum(cfg, section)
+		} else if process == define.KEY_VALUE_sore {
+			this.processSore(cfg, section)
+		} else if process == define.KEY_VALUE_limt {
+			this.processLimt(cfg, section)
 		} else {
 			panic("process 读取操作报错：" + process)
 		}
@@ -745,7 +750,6 @@ func (this *YgcOfficeProcess) goPostion(s string) {
 	}
 }
 func (this *YgcOfficeProcess) processSum(cfg *config.Config, section string) {
-
 	ss, _ := cfg.String(section, define.KEY_OPTION_sumSection)
 	var wValue float64=0
 	var wData TableMapLineData
@@ -770,6 +774,34 @@ func (this *YgcOfficeProcess) processSum(cfg *config.Config, section string) {
 	this.setReadData([]TableMapLineData{wData})
 	fmt.Printf("统计得到数据：%v\n", this.getReadData())
 
+}
+
+type TypeSort []TableMapLineData
+var SortField string
+func (c TypeSort) Len() int {
+	return len(c)
+}
+func (c TypeSort) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+func (c TypeSort) Less(i, j int) bool {
+	return c[i].lineData[SortField].value.(float64) > c[j].lineData[SortField].value.(float64)
+}
+func (this *YgcOfficeProcess) processSore(cfg *config.Config, section string) {
+	if ss, err := cfg.String(section, define.KEY_OPTION_sumSection);err==nil{
+		SortField =ss
+		var sortdata TypeSort = this.getReadData()
+		sort.Sort(sortdata)
+	}else{
+		panic("未设置排序字段")
+	}
+}
+func (this *YgcOfficeProcess) processLimt(cfg *config.Config, section string) {
+	if cnt, err := cfg.Int(section, define.KEY_OPTION_sumSection);err==nil{
+		this.setReadData(this.getReadData()[:cnt])
+	}else{
+		panic("未设置排序字段")
+	}
 }
 
 //func (this *YgcOfficeProcess) processWriteItem(cfg *config.Config, section string) {
