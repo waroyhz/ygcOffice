@@ -16,6 +16,8 @@ import (
 	"github.com/Luxurioust/excelize"
 	"ygcOffice/process"
 	"time"
+	"ygcOffice/foreachDir"
+	"strings"
 )
 
 var (
@@ -27,6 +29,7 @@ func main() {
 	var srcFile string
 	var dstxlsx *excelize.File
 	var srcxlsx *excelize.File
+	var srcList []string
 	pdstFile := flag.String("dst", "", "区域合并明细文件路径")
 	psrcFile := flag.String("src", "", "分公司文件路径")
 	flag.Parse()
@@ -92,6 +95,20 @@ func main() {
 		psrcFile=&srcfile
 	}
 
+	if *psrcFile=="dir"{
+		if flist,err:= foreachDir.ListDir(".",".xlsx");err==nil{
+			for _,f:=range flist{
+				fs:=strings.Split(f,"-")
+
+				if len(fs)==3 && strings.Index(fs[0], ".\\公司")==0{
+					srcList=append(srcList,f)
+				}
+			}
+		}else {
+			panic(err)
+		}
+	}
+
 	if *psrcFile==""{
 		print("选择一个子公司文件：")
 		fmt.Scan(&srcFile)
@@ -99,18 +116,30 @@ func main() {
 		srcFile=*psrcFile
 	}
 
-	if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
-		println(err)
-		return
-	} else {
-		println("分公司文件加载成功 ", srcFile)
+	if srcFile!="dir" {
+		if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
+			println(err)
+			return
+		} else {
+			println("分公司文件加载成功 ", srcFile)
+		}
+		process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx)
+	}else{
+		for _,file:=range srcList{
+			if srcxlsx, err = excelize.OpenFile(file); err != nil {
+				println(err)
+				return
+			} else {
+				println("分公司文件加载成功 ", file)
+			}
+			process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx)
+		}
 	}
 
-	process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx)
 
 	dstxlsx.Save()
 
-	stop:= time.NewTimer(time.Second/10)
+	stop:= time.NewTimer(time.Second)
 	<- stop.C
 	stop.Stop()
 	println("程序处理完成，按任意键退出……")
