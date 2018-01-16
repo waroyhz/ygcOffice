@@ -36,8 +36,7 @@ func main() {
 
 	cfg, err := config.ReadDefault(*configFile)
 	if err != nil {
-		log.Fatal(err)
-		log.Println("没有发现操作配置文件，已经产生了一个默认操作配置文件config.ini，请查看config.ini文件的配置说明进行配置。")
+		log.Printf("%v,没有发现操作配置文件，已经产生了一个默认操作配置文件config.ini，请查看config.ini文件的配置说明进行配置。\n",err)
 		cfg = config.NewDefault()
 		cfg.AddSection(define.KEY_SECTION_DEMO)
 		cfg.AddOption(define.KEY_SECTION_DEMO,define.KEY_OPTION_dstFile,"汇总文件名")
