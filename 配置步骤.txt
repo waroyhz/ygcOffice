@@ -1,0 +1,17 @@
+go get -u -v github.com/nsf/gocode
+go get -u -v github.com/rogpeppe/godef
+go get -u -v github.com/golang/lint/golint
+go get -u -v github.com/lukehoban/go-find-references
+go get -u -v github.com/lukehoban/go-outline
+go get -u -v sourcegraph.com/sqs/goreturns
+go get -u -v golang.org/x/tools/cmd/gorename //这个工具不能直接下载，需要用下面的方法
+
+
+
+cd $GOPATH/src/golang.org/x //目录不存在时可以先创建 
+git clone https://github.com/golang/tools 
+cd $GOPATH/src 
+go install -v golang.org/x/tools/cmd/guru // 安装工具，其他同理
+
+go install -v golang.org/x/tools/cmd/guru
+go install -v golang.org/x/tools/cmd/gorename
