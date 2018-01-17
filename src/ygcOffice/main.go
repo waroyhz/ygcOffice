@@ -101,7 +101,7 @@ func main() {
 			for _,f:=range flist{
 				fs:=strings.Split(f,"-")
 
-				if len(fs)==3 && strings.Index(fs[0], ".\\公司")==0{
+				if len(fs)==3 && strings.Index(fs[0], "公司")==2{
 					srcList=append(srcList,f)
 				}
 			}
