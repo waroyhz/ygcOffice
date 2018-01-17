@@ -34,22 +34,25 @@ func FindRowCell(file *excelize.File, sheetName string, column int, rowStart int
 //}
 
 func FindStartTextCell(file *excelize.File, sheetName string,xstart,ystart int, findVal string) (result bool, columnIndex, rowIndex int) {
-	return FindCell(file, sheetName, xstart, xstart+1000, ystart, ystart+10000, findVal)
+	return FindCell(file, sheetName, xstart, xstart+500, ystart, ystart+5000, findVal)
 }
 
 func FindCell(file *excelize.File, sheetName string, columnStart int, columnEnd int, rowStart int, rowEnd int, findVal string) (result bool, columnIndex, rowIndex int) {
 	if rowEnd < rowStart {
-		rowEnd = rowStart + 10000
+		rowEnd = rowStart + 5000
 	}
 
 	if columnEnd < columnStart {
-		columnEnd = columnStart + 1000
+		columnEnd = columnStart + 500
 	}
 
 	for l := rowStart; l <= rowEnd; l++ {
 		for i := columnStart; i <= columnEnd; i++ {
 			tmp := file.GetCellValue(sheetName, GetCellName(i, l))
-			if tmp == findVal {
+			//if strings.Index(tmp,"\n")>=0{
+			//	tmp= strings.Replace(tmp,"\n","",-1)
+			//}
+			if strings.Index(tmp,findVal)==0 {
 				return true, i, l
 			}
 		}

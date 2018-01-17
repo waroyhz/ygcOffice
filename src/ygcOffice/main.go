@@ -25,6 +25,7 @@ var (
 )
 
 func main() {
+
 	var dstFile string
 	var srcFile string
 	var dstxlsx *excelize.File
@@ -125,27 +126,27 @@ func main() {
 		} else {
 			println("分公司文件加载成功 ", srcFile)
 		}
-		process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx)
+		process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx,"")
 	}else{
 		for _,file:=range srcList{
 			if srcxlsx, err = excelize.OpenFile(file); err != nil {
 				println(err)
-				return
+				break
 			} else {
 				println("分公司文件加载成功 ", file)
 			}
-			process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx)
+			process.NewProcess(cfg,define.KEY_SECTION_main,srcxlsx,dstxlsx,"")
 		}
 	}
-
-
+	processWaitTime:= time.Now().Sub(startTime)
+	fmt.Printf("耗时 %s 所有过程处理完毕，将数据写入磁盘……\n",processWaitTime)
+	startTime=time.Now()
 	dstxlsx.Save()
-
-	//stop:= time.NewTimer(time.Second)
-	//<- stop.C
-	//stop.Stop()
 	waitTime:= time.Now().Sub(startTime)
-	fmt.Printf("耗时 %s 程序处理完成，按任意键退出……",waitTime)
+	fmt.Printf("耗时 %s 程序处理完成，按任意键退出……\n",waitTime)
+	stop:= time.NewTimer(time.Second)
+	<- stop.C
+	stop.Stop()
 	var onkey string
 	fmt.Scanln(onkey)
 }

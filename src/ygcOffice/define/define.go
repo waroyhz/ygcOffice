@@ -30,6 +30,8 @@ const (
 	KEY_OPTION_dstColumn      ="dstColumn"
 	KEY_OPTION_key            ="key"
 	KEY_OPTION_sumSection     ="sumSection"
+	KEY_OPTION_value     ="value"
+
 
 
 	KEY_VALUE_src             ="src"
@@ -41,16 +43,18 @@ const (
 	KEY_VALUE_readItemProcess ="readItemProcess"
 	KEY_VALUE_readItem			="readItem"
 	//KEY_VALUE_writeItem			="writeItem"
-	KEY_VALUE_string          ="string"
-	KEY_VALUE_float           ="float"
-	KEY_VALUE_int             ="int"
-	KEY_VALUE_date            ="date"
-	KEY_VALUE_sum             ="sum"
-	KEY_VALUE_sore             ="sore"
-	KEY_VALUE_limt             ="limt"
-	KEY_VALUE_reset             ="reset"
-	KEY_VALUE_print           ="print"
-	KEY_VALUE_compny          ="$compny"
+	KEY_VALUE_string ="string"
+	KEY_VALUE_float  ="float"
+	KEY_VALUE_int    ="int"
+	KEY_VALUE_date   ="date"
+	KEY_VALUE_sum    ="sum"
+	KEY_VALUE_sort   ="sort"
+	KEY_VALUE_filter ="filter"
+	KEY_VALUE_limt   ="limt"
+	KEY_VALUE_reset  ="reset"
+	KEY_VALUE_print  ="print"
+	KEY_VALUE_compny ="$compny"
+	//KEY_VALUE_top5          ="top5"
 )
 
 
