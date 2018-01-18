@@ -12,14 +12,15 @@ import (
 	"errors"
 	"sort"
 	"ygcOffice/catch"
-	"os"
 	"sync"
+	"time"
 )
 
 type YgcOfficeProcess struct {
-	target *excel.ExcelObject
-	data   map[string]interface{}
+	target    *excel.ExcelObject
+	data      map[string]interface{}
 	waitGroup *sync.WaitGroup
+	currentSection string
 }
 
 const (
@@ -74,39 +75,39 @@ func (this *YgcOfficeProcess) getReadData() []TableMapLineData {
 	}
 }
 
-func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection string) {
+func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection string) (result bool, errString string) {
 	var data = map[string]interface{}{}
 	data[define.KEY_VALUE_src] = &excel.ExcelObject{File: srcxlsx}
 	data[define.KEY_VALUE_dst] = &excel.ExcelObject{File: dstxlsx}
 	data[define.KEY_VALUE_compny] = excel.GetCompnyNameFromPath(srcxlsx.Path)
 	var ygcOfficeProcess = YgcOfficeProcess{}
-	defer catch.Catch(func(param ... interface{}) {
-		ygcOfficeProcess:= param[0].(*YgcOfficeProcess)
-		fmt.Printf(`========================================================
+	defer catch.Catch(func(err interface{}, stack string, param ... interface{}) {
+		ygcOfficeProcess := param[0].(*YgcOfficeProcess)
+		fmt.Sprintf(`========================================================
 当前正在操作文件：%s
-程序发生意料之外的异常，无法继续执行，请仔细查看错误信息后按任意键退出……
-`,ygcOfficeProcess.target.File.Path)
-		var onkey string
-		fmt.Scanln(onkey)
-		os.Exit(1)
-	},&ygcOfficeProcess)
+`, ygcOfficeProcess.target.File.Path)
+
+		errString = fmt.Sprintf(`%v 发生错误：%v\n当前文件：%s\n当前节点：%s\n当前sheet：%s`, time.Now(), err, ygcOfficeProcess.target.File.Path,ygcOfficeProcess.currentSection,ygcOfficeProcess.target.CurrentSheet)
+		result = false
+	}, &ygcOfficeProcess)
 	ygcOfficeProcess.data = data
-	ygcOfficeProcess.waitGroup=&sync.WaitGroup{}
+	ygcOfficeProcess.waitGroup = &sync.WaitGroup{}
 
 	//ygcOfficeProcess.ProcessNext(cfg, section, parentSection)
 	if nextSection, err := cfg.String(section, define.KEY_OPTION_nextSection); err == nil {
 		sections := strings.Split(nextSection, ",")
 		for _, v := range sections {
-			if false{//需要做读写分离处理，否则程序会报错。
+			if false { //需要做读写分离处理，否则程序会报错。
 				go func(s string) {
 					ygcOfficeProcess.waitGroup.Add(1)
-					newChildProcess(cfg,s,srcxlsx,dstxlsx,section)
+					newChildProcess(cfg, s, srcxlsx, dstxlsx, section)
 					ygcOfficeProcess.waitGroup.Done()
 				}(v)
-			}else {
+			} else {
 				func(s string) {
 					ygcOfficeProcess.waitGroup.Add(1)
-					newChildProcess(cfg,s,srcxlsx,dstxlsx,section)
+					ygcOfficeProcess.ProcessNext(cfg, section, parentSection)
+					//newChildProcess(cfg, s, srcxlsx, dstxlsx, section)
 					ygcOfficeProcess.waitGroup.Done()
 				}(v)
 			}
@@ -115,7 +116,7 @@ func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.F
 		ygcOfficeProcess.waitGroup.Wait()
 	}
 
-
+	return true, ""
 }
 
 func newChildProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection string) {
@@ -124,16 +125,7 @@ func newChildProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excel
 	data[define.KEY_VALUE_dst] = &excel.ExcelObject{File: dstxlsx}
 	data[define.KEY_VALUE_compny] = excel.GetCompnyNameFromPath(srcxlsx.Path)
 	var ygcOfficeProcess = YgcOfficeProcess{}
-	defer catch.Catch(func(param ... interface{}) {
-		ygcOfficeProcess:= param[0].(*YgcOfficeProcess)
-		fmt.Printf(`========================================================
-当前正在操作文件：%s
-程序发生意料之外的异常，无法继续执行，请仔细查看错误信息后按任意键退出……
-`,ygcOfficeProcess.target.File.Path)
-		var onkey string
-		fmt.Scanln(onkey)
-		os.Exit(1)
-	},&ygcOfficeProcess)
+
 	ygcOfficeProcess.data = data
 	ygcOfficeProcess.ProcessNext(cfg, section, parentSection)
 }
@@ -142,13 +134,14 @@ func (this *YgcOfficeProcess) ProcessNext(cfg *config.Config, section string, pa
 	if nextSection, err := cfg.String(section, define.KEY_OPTION_nextSection); err == nil {
 		sections := strings.Split(nextSection, ",")
 		for _, v := range sections {
-				this.ProcessCommand(cfg, strings.Trim(v, " "), parentSection+"→"+section)
+			this.ProcessCommand(cfg, strings.Trim(v, " "), parentSection+"→"+section)
 		}
 
 	}
 }
 func (this *YgcOfficeProcess) ProcessCommand(cfg *config.Config, section string, parentSection string) {
 	fmt.Printf("处理节点：%s→%s\n", parentSection, section)
+	this.currentSection=fmt.Sprintf("%s→%s", parentSection, section)
 	if _, err := cfg.Options(section); err != nil {
 		panic(fmt.Sprintf("配置错误，节点 %s 不存在！", section))
 	}
@@ -388,7 +381,7 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 		readRange = e
 	}
 
-	writeMap:=make(map[string]interface{})
+	writeMap := make(map[string]interface{})
 
 	fmt.Printf("准备写数据，当前坐标位置：%s 处理范围： %s-%s\n", excel.GetCellName(this.target.X, this.target.Y), excel.GetCellName(this.target.X, this.target.Y), excel.GetCellName(this.target.Xe, this.target.Ye))
 
@@ -403,7 +396,7 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 			}
 		}
 
-		var line=0
+		var line = 0
 		for _, lineData := range this.getReadData() {
 			if readRange > 0 && line >= readRange {
 				break
@@ -451,9 +444,9 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 						}
 					}
 					if !isfind {
-						panic(fmt.Sprintf("未找到可插入的位置！！！！ file=%s ",this.target.File.Path))
+						panic(fmt.Sprintf("未找到可插入的位置！！！！ file=%s ", this.target.File.Path))
 					}
-					if isAdd && readRange==0{
+					if isAdd && readRange == 0 {
 						nextIsNull := true
 						for _, data := range lineData.lineData {
 							if data.table.dstColumn != "" {
@@ -469,23 +462,23 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 						}
 					}
 				}
-				for k:=range writeMap{
-					delete(writeMap,k)
+				for k := range writeMap {
+					delete(writeMap, k)
 				}
 				for _, data := range lineData.lineData {
 					if data.table.dstColumn != "" {
-						if v,ok:=writeMap[data.table.dstColumn];ok{
-							if data.table.format==define.KEY_VALUE_float{
+						if v, ok := writeMap[data.table.dstColumn]; ok {
+							if data.table.format == define.KEY_VALUE_float {
 								fval, _ := strconv.ParseFloat(data.value.(string), 64)
-								fival,_:=strconv.ParseFloat(v.(string),64)
-								if fival>fval{
+								fival, _ := strconv.ParseFloat(v.(string), 64)
+								if fival > fval {
 									fmt.Printf("重复写入 %s 的值 %v 太小\n", excel.GetCellName(this.target.X, this.target.Y), fval)
 									continue
 								}
 							}
 
 						}
-						writeMap[data.table.dstColumn]=data.value
+						writeMap[data.table.dstColumn] = data.value
 						this.writeNewValue("", data.value, data.table.format, excel.GetCellName(data.table.dstX, this.target.Y))
 					}
 				}
@@ -588,7 +581,7 @@ func (this *YgcOfficeProcess) writeNewValue(oldval string, newval interface{}, f
 					panic(fmt.Sprintf("写数据格式转换错误：%s sheet: %s cell:%s", this.target.File.Path, this.target.CurrentSheet, cellName))
 				}
 			default:
-				panic(fmt.Sprintf("format 未处理的类型 %v=%v",reflect.ValueOf(newval).Kind().String(),newval))
+				panic(fmt.Sprintf("format 未处理的类型 %v=%v", reflect.ValueOf(newval).Kind().String(), newval))
 			}
 			style, _ = this.target.File.NewStyle(`{"border":[{"type":"left","color":"000000","style":1},{"type":"top","color":"000000","style":1},{"type":"bottom","color":"000000","style":1},{"type":"right","color":"000000","style":1}],"number_format": 43}`)
 
@@ -958,24 +951,24 @@ func (this *YgcOfficeProcess) processSort(cfg *config.Config, section string) {
 		var sortdata TypeSort = this.getReadData()
 		sort.Sort(sortdata)
 		//数据去重
-		for i:=len(sortdata)-1;i>=0;i--{
-			for l:=i-1;l>=0;l--{
-				valueEQ:=true
-				for k,v:=range sortdata[i].lineData{
-					if dv,_:= sortdata[l].lineData[k];dv.value!=v.value{
-						valueEQ=false
+		for i := len(sortdata) - 1; i >= 0; i-- {
+			for l := i - 1; l >= 0; l-- {
+				valueEQ := true
+				for k, v := range sortdata[i].lineData {
+					if dv, _ := sortdata[l].lineData[k]; dv.value != v.value {
+						valueEQ = false
 						break
 					}
 				}
-				if valueEQ{
+				if valueEQ {
 					//fmt.Printf("移除重复数据： %v\n",sortdata[l])
-					sortdata=append(sortdata[0:l],sortdata[l+1:]...)
+					sortdata = append(sortdata[0:l], sortdata[l+1:]...)
 					break
 				}
 			}
 		}
-		for i,v:=range sortdata{
-			fmt.Printf("排序结果%d=%v\n",i,v)
+		for i, v := range sortdata {
+			fmt.Printf("排序结果%d=%v\n", i, v)
 		}
 		this.setReadData(sortdata)
 	} else {
@@ -1001,9 +994,9 @@ func (this *YgcOfficeProcess) processReset(cfg *config.Config, section string) {
 }
 func (this *YgcOfficeProcess) processFilter(cfg *config.Config, section string) {
 	if filterField, err := cfg.String(section, define.KEY_OPTION_key); err == nil {
-		if vals,err1:= cfg.String(section, define.KEY_OPTION_value);err1==nil {
+		if vals, err1 := cfg.String(section, define.KEY_OPTION_value); err1 == nil {
 			fields := strings.Split(filterField, ",")
-			fieldVals:=strings.Split(vals,",")
+			fieldVals := strings.Split(vals, ",")
 			data := this.getReadData()
 
 			var filterbool [10]bool
@@ -1014,30 +1007,30 @@ func (this *YgcOfficeProcess) processFilter(cfg *config.Config, section string) 
 					switch data[i].lineData[f].table.format {
 					case define.KEY_VALUE_float:
 						fval, _ := strconv.ParseFloat(val, 64)
-						fival,_:=strconv.ParseFloat(fieldVals[l],64)
+						fival, _ := strconv.ParseFloat(fieldVals[l], 64)
 
-						filterbool[l]= fval>fival
+						filterbool[l] = fval > fival
 					default:
 						panic("过滤不支持的类型")
 					}
 				}
-				iscontinue:=false
-				for l:=0;l<len(fields);l++{
-					if filterbool[l]{
-						iscontinue=true
+				iscontinue := false
+				for l := 0; l < len(fields); l++ {
+					if filterbool[l] {
+						iscontinue = true
 						break
 					}
 				}
-				if iscontinue{
+				if iscontinue {
 					continue
 				}
-				data=append(data[0:i],data[i+1:]...)
+				data = append(data[0:i], data[i+1:]...)
 			}
 			for i, v := range data {
 				fmt.Printf("过滤结果%d=%v\n", i, v)
 			}
 			this.setReadData(data)
-		}else{
+		} else {
 			panic("未设置过滤值")
 		}
 	} else {
