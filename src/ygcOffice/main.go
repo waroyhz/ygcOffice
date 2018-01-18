@@ -23,6 +23,9 @@ import (
 
 var (
 	configFile = flag.String("configfile", "config.ini", "General configuration file")
+	runSection = "写入统计"
+	runCount ="运行次数"
+	runTime="第%d次运行时间"
 )
 
 func main() {
@@ -126,6 +129,12 @@ func main() {
 
 	startTime := time.Now()
 
+
+	runcount,_:= cfgLog.Int(runSection,runCount)
+	runcount++
+	cfgLog.AddSection(runSection)
+	cfgLog.AddOption(runSection,runCount,fmt.Sprintf("%d",runcount))
+
 	if srcFile != "dir" {
 		if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
 			println(err)
@@ -172,6 +181,7 @@ func main() {
 				fmt.Printf("文件 %s 已经处理，跳过！\n", file)
 			}
 		}
+
 		{
 			fileStartTime := time.Now()
 			compny := "样式"
@@ -199,6 +209,7 @@ func main() {
 	}
 
 	waitTime := time.Now().Sub(startTime)
+	cfgLog.AddOption(runSection,fmt.Sprintf(runTime,runcount),fmt.Sprintf("%v",waitTime))
 	fmt.Printf("总耗时 %s 程序处理完成，按任意键退出……\n", waitTime)
 	stop := time.NewTimer(time.Second)
 	<-stop.C
