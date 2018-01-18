@@ -18,14 +18,15 @@ import (
 	"ygcOffice/foreachDir"
 	"strings"
 	"time"
-	"ygcOffice/excel"
 )
 
 var (
 	configFile = flag.String("configfile", "config.ini", "General configuration file")
 	runSection = "写入统计"
+	runFileCount ="文件总数"
 	runCount ="运行次数"
 	runTime="第%d次运行时间"
+	runProcess="第%d次运行处理%d文件"
 )
 
 func main() {
@@ -134,6 +135,8 @@ func main() {
 	runcount++
 	cfgLog.AddSection(runSection)
 	cfgLog.AddOption(runSection,runCount,fmt.Sprintf("%d",runcount))
+	cfgLog.AddOption(runSection,runFileCount,fmt.Sprintf("%d",len(srcList)))
+	runProcessFile:=[]string{}
 
 	if srcFile != "dir" {
 		if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
@@ -145,7 +148,7 @@ func main() {
 		process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, "")
 	} else {
 		for _, file := range srcList {
-			compny := excel.GetCompnyNameFromPath(file)
+			compny := file
 			isprocess, _ := cfgLog.Bool(compny, define.KEY_OPTION_process)
 			if !isprocess {
 				fileStartTime := time.Now()
@@ -163,6 +166,7 @@ func main() {
 					fmt.Printf("文件 %s 处理完毕，耗时 %v\n", compny, processWaitTime)
 					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
 					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
+					runProcessFile=append(runProcessFile,compny)
 				} else {
 					processWaitTime := time.Now().Sub(fileStartTime)
 					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
@@ -210,6 +214,9 @@ func main() {
 
 	waitTime := time.Now().Sub(startTime)
 	cfgLog.AddOption(runSection,fmt.Sprintf(runTime,runcount),fmt.Sprintf("%v",waitTime))
+	cfgLog.AddOption(runSection,fmt.Sprintf(runProcess,runcount,len(runProcessFile)),strings.Join(runProcessFile,","))
+	cfgLog.WriteFile(dstFile+".log", 0644, fmt.Sprintf("阳光城Office导入记录文件 by waroy \n最后一次开始执行时间 %v 配置写入时间： %v", startTime, time.Now()))
+
 	fmt.Printf("总耗时 %s 程序处理完成，按任意键退出……\n", waitTime)
 	stop := time.NewTimer(time.Second)
 	<-stop.C
