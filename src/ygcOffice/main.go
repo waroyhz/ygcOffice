@@ -136,12 +136,11 @@ func main() {
 		process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, "")
 	} else {
 		for _, file := range srcList {
-			compny:=excel.GetCompnyNameFromPath(file)
+			compny := excel.GetCompnyNameFromPath(file)
 			isprocess, _ := cfgLog.Bool(compny, define.KEY_OPTION_process)
 			if !isprocess {
 				fileStartTime := time.Now()
 
-				startTime = time.Now()
 				if srcxlsx, err = excelize.OpenFile(file); err != nil {
 					println(err)
 					break
@@ -152,14 +151,14 @@ func main() {
 				if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, ""); result {
 					dstxlsx.Save()
 					processWaitTime := time.Now().Sub(fileStartTime)
-					fmt.Printf("文件 %s 处理完毕，耗时 %v\n", compny,processWaitTime)
-					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v",result))
-					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v",processWaitTime))
+					fmt.Printf("文件 %s 处理完毕，耗时 %v\n", compny, processWaitTime)
+					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
+					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
 				} else {
 					processWaitTime := time.Now().Sub(fileStartTime)
-					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v",result))
+					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
 					cfgLog.AddOption(compny, "errString", errstring)
-					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v",processWaitTime))
+					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
 					if dstxlsx, err = excelize.OpenFile(dstFile); err != nil {
 						panic(err)
 						return
@@ -167,16 +166,40 @@ func main() {
 						println("重新加载汇总文件", dstFile)
 					}
 				}
-				cfgLog.WriteFile(dstFile + ".log", 0644, fmt.Sprintf("阳光城Office导入记录文件 by waroy \n最后一次开始执行时间 %v 配置写入时间： %v",startTime,time.Now()))
-				cfgLog,_= config.ReadDefault(dstFile + ".log")
+				cfgLog.WriteFile(dstFile+".log", 0644, fmt.Sprintf("阳光城Office导入记录文件 by waroy \n最后一次开始执行时间 %v 配置写入时间： %v", startTime, time.Now()))
+				cfgLog, _ = config.ReadDefault(dstFile + ".log")
 			} else {
 				fmt.Printf("文件 %s 已经处理，跳过！\n", file)
 			}
 		}
+		{
+			fileStartTime := time.Now()
+			compny := "样式"
+			if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, nil, dstxlsx, "style"); result {
+				dstxlsx.Save()
+				processWaitTime := time.Now().Sub(fileStartTime)
+				fmt.Printf("%s 处理完毕，耗时 %v\n", compny, processWaitTime)
+				cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
+				cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
+			} else {
+				processWaitTime := time.Now().Sub(fileStartTime)
+				cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
+				cfgLog.AddOption(compny, "errString", errstring)
+				cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
+				if dstxlsx, err = excelize.OpenFile(dstFile); err != nil {
+					panic(err)
+					return
+				} else {
+					println("重新加载汇总文件", dstFile)
+				}
+			}
+			cfgLog.WriteFile(dstFile+".log", 0644, fmt.Sprintf("阳光城Office导入记录文件 by waroy \n最后一次开始执行时间 %v 配置写入时间： %v", startTime, time.Now()))
+			cfgLog, _ = config.ReadDefault(dstFile + ".log")
+		}
 	}
 
 	waitTime := time.Now().Sub(startTime)
-	fmt.Printf("耗时 %s 程序处理完成，按任意键退出……\n", waitTime)
+	fmt.Printf("总耗时 %s 程序处理完成，按任意键退出……\n", waitTime)
 	stop := time.NewTimer(time.Second)
 	<-stop.C
 	stop.Stop()

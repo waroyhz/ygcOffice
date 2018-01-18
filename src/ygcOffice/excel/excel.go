@@ -46,13 +46,17 @@ func FindCell(file *excelize.File, sheetName string, columnStart int, columnEnd 
 		columnEnd = columnStart + 500
 	}
 
+	var cellName string
+	var tmp string
 	for l := rowStart; l <= rowEnd; l++ {
 		for i := columnStart; i <= columnEnd; i++ {
-			tmp := file.GetCellValue(sheetName, GetCellName(i, l))
+			cellName=GetCellName(i, l)
+			//tmp1:= file.GetCellFormula(sheetName,cellName)
+			tmp = file.GetCellValue(sheetName, cellName)
 			//if strings.Index(tmp,"\n")>=0{
 			//	tmp= strings.Replace(tmp,"\n","",-1)
 			//}
-			if strings.Index(tmp,findVal)==0 {
+			if strings.Index(tmp,findVal)==0{
 				return true, i, l
 			}
 		}
