@@ -21,12 +21,13 @@ import (
 )
 
 var (
-	configFile = flag.String("configfile", "config.ini", "General configuration file")
-	runSection = "写入统计"
-	runFileCount ="文件总数"
-	runCount ="运行次数"
-	runTime="第%d次运行时间"
-	runProcess="第%d次运行处理%d文件"
+	configFile             = flag.String("configfile", "config.ini", "General configuration file")
+	define_runSection      = "写入统计"
+	define_runFileCount    = "文件总数"
+	define_runCount        = "运行次数"
+	define_runTime         = "第%d次运行时间"
+	define_runProcessError = "第%d次运行失败%d文件"
+	define_filterFiles     = "导入排除的文件"
 )
 
 func main() {
@@ -107,6 +108,8 @@ func main() {
 		psrcFile = &srcfile
 	}
 
+	filterFiles := []string{}
+
 	if *psrcFile == "dir" {
 		if flist, err := foreachDir.ListDir(".", ".xlsx"); err == nil {
 			for _, f := range flist {
@@ -114,6 +117,8 @@ func main() {
 
 				if len(fs) == 3 && strings.Index(fs[0], "公司") == 2 {
 					srcList = append(srcList, f)
+				} else {
+					filterFiles = append(filterFiles, f)
 				}
 			}
 		} else {
@@ -130,13 +135,13 @@ func main() {
 
 	startTime := time.Now()
 
-
-	runcount,_:= cfgLog.Int(runSection,runCount)
+	runcount, _ := cfgLog.Int(define_runSection, define_runCount)
 	runcount++
-	cfgLog.AddSection(runSection)
-	cfgLog.AddOption(runSection,runCount,fmt.Sprintf("%d",runcount))
-	cfgLog.AddOption(runSection,runFileCount,fmt.Sprintf("%d",len(srcList)))
-	runProcessFile:=[]string{}
+	cfgLog.AddSection(define_runSection)
+	cfgLog.AddOption(define_runSection, define_runCount, fmt.Sprintf("%d", runcount))
+	cfgLog.AddOption(define_runSection, define_runFileCount, fmt.Sprintf("%d", len(srcList)))
+	cfgLog.AddOption(define_runSection, define_filterFiles, strings.Join(filterFiles, ","))
+	runProcessErrorFile := []string{}
 
 	if srcFile != "dir" {
 		if srcxlsx, err = excelize.OpenFile(srcFile); err != nil {
@@ -145,7 +150,7 @@ func main() {
 		} else {
 			println("分公司文件加载成功 ", srcFile)
 		}
-		process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, "")
+		process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, []string{})
 	} else {
 		for _, file := range srcList {
 			compny := file
@@ -160,14 +165,14 @@ func main() {
 					println("分公司文件加载成功 ", file)
 				}
 
-				if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, ""); result {
+				if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, srcxlsx, dstxlsx, []string{}); result {
 					dstxlsx.Save()
 					processWaitTime := time.Now().Sub(fileStartTime)
 					fmt.Printf("文件 %s 处理完毕，耗时 %v\n", compny, processWaitTime)
 					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
 					cfgLog.AddOption(compny, "time", fmt.Sprintf("%v", processWaitTime))
-					runProcessFile=append(runProcessFile,compny)
 				} else {
+					runProcessErrorFile = append(runProcessErrorFile, compny)
 					processWaitTime := time.Now().Sub(fileStartTime)
 					cfgLog.AddOption(compny, define.KEY_OPTION_process, fmt.Sprintf("%v", result))
 					cfgLog.AddOption(compny, "errString", errstring)
@@ -189,7 +194,7 @@ func main() {
 		{
 			fileStartTime := time.Now()
 			compny := "样式"
-			if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, nil, dstxlsx, "style"); result {
+			if result, errstring := process.NewProcess(cfg, define.KEY_SECTION_main, nil, dstxlsx, []string{process.Key_section_style}); result {
 				dstxlsx.Save()
 				processWaitTime := time.Now().Sub(fileStartTime)
 				fmt.Printf("%s 处理完毕，耗时 %v\n", compny, processWaitTime)
@@ -213,8 +218,10 @@ func main() {
 	}
 
 	waitTime := time.Now().Sub(startTime)
-	cfgLog.AddOption(runSection,fmt.Sprintf(runTime,runcount),fmt.Sprintf("%v",waitTime))
-	cfgLog.AddOption(runSection,fmt.Sprintf(runProcess,runcount,len(runProcessFile)),strings.Join(runProcessFile,","))
+	cfgLog.AddOption(define_runSection, fmt.Sprintf(define_runTime, runcount), fmt.Sprintf("%v", waitTime))
+	if len(runProcessErrorFile)>0{
+		cfgLog.AddOption(define_runSection, fmt.Sprintf(define_runProcessError, runcount, len(runProcessErrorFile)), strings.Join(runProcessErrorFile, ","))
+	}
 	cfgLog.WriteFile(dstFile+".log", 0644, fmt.Sprintf("阳光城Office导入记录文件 by waroy \n最后一次开始执行时间 %v 配置写入时间： %v", startTime, time.Now()))
 
 	fmt.Printf("总耗时 %s 程序处理完成，按任意键退出……\n", waitTime)

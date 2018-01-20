@@ -17,10 +17,10 @@ import (
 )
 
 type YgcOfficeProcess struct {
-	target         *excel.ExcelObject
-	data           map[string]interface{}
-	waitGroup      *sync.WaitGroup
-	currentSection string
+	target       *excel.ExcelObject
+	data         map[string]interface{}
+	waitGroup    *sync.WaitGroup
+	sectionTrace []string
 }
 
 const (
@@ -31,6 +31,7 @@ const (
 	key_yend        = "$yEndText"
 	key_time_style  = "key_time_style"
 	key_float_style = "key_float_style"
+	Key_section_style="style"
 )
 
 type ColumnMap struct {
@@ -77,7 +78,7 @@ func (this *YgcOfficeProcess) getReadData() []TableMapLineData {
 	}
 }
 
-func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection string) (result bool, errString string) {
+func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection []string) (result bool, errString string) {
 	var data = map[string]interface{}{}
 	data[define.KEY_VALUE_src] = &excel.ExcelObject{File: srcxlsx}
 	data[define.KEY_VALUE_dst] = &excel.ExcelObject{File: dstxlsx}
@@ -93,7 +94,7 @@ func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.F
 当前正在操作文件：%s
 `, ygcOfficeProcess.target.File.Path)
 
-		errString = fmt.Sprintf(`%v 发生错误：%v\n当前文件：%s\n当前节点：%s\n当前sheet：%s`, time.Now(), err, ygcOfficeProcess.target.File.Path, ygcOfficeProcess.currentSection, ygcOfficeProcess.target.CurrentSheet)
+		errString = fmt.Sprintf(`%v 发生错误：%v\n当前文件：%s\n当前节点：%s\n当前sheet：%s`, time.Now(), err, ygcOfficeProcess.target.File.Path, ygcOfficeProcess.sectionTrace, ygcOfficeProcess.target.CurrentSheet)
 		result = false
 	}, &ygcOfficeProcess)
 	ygcOfficeProcess.data = data
@@ -125,7 +126,7 @@ func NewProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.F
 	return true, ""
 }
 
-func newChildProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection string) {
+func newChildProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excelize.File, parentSection []string) {
 	var data = map[string]interface{}{}
 	data[define.KEY_VALUE_src] = &excel.ExcelObject{File: srcxlsx}
 	data[define.KEY_VALUE_dst] = &excel.ExcelObject{File: dstxlsx}
@@ -136,18 +137,18 @@ func newChildProcess(cfg *config.Config, section string, srcxlsx, dstxlsx *excel
 	ygcOfficeProcess.ProcessNext(cfg, section, parentSection)
 }
 
-func (this *YgcOfficeProcess) ProcessNext(cfg *config.Config, section string, parentSection string) {
+func (this *YgcOfficeProcess) ProcessNext(cfg *config.Config, section string, parentSection []string) {
 	if nextSection, err := cfg.String(section, define.KEY_OPTION_nextSection); err == nil {
 		sections := strings.Split(nextSection, ",")
 		for _, v := range sections {
-			this.ProcessCommand(cfg, strings.Trim(v, " "), parentSection+"→"+section)
+			this.ProcessCommand(cfg, strings.Trim(v, " "), append(parentSection,section))
 		}
 
 	}
 }
-func (this *YgcOfficeProcess) ProcessCommand(cfg *config.Config, section string, parentSection string) {
-	fmt.Printf("处理节点：%s→%s\n", parentSection, section)
-	this.currentSection = fmt.Sprintf("%s→%s", parentSection, section)
+func (this *YgcOfficeProcess) ProcessCommand(cfg *config.Config, section string, parentSection []string) {
+	fmt.Printf("处理节点：%s→%s\n", strings.Join(parentSection,"→"), section)
+	this.sectionTrace = append(parentSection, section)
 	if _, err := cfg.Options(section); err != nil {
 		panic(fmt.Sprintf("配置错误，节点 %s 不存在！", section))
 	}
@@ -224,7 +225,7 @@ func (this *YgcOfficeProcess) ProcessXAdd(xadd int) {
 	fmt.Printf("设置当前X坐标：%s\n", excel.GetCellName(this.target.X, this.target.Y))
 }
 
-func (this *YgcOfficeProcess) ProcessOption(cfg *config.Config, section string, parentSection string) {
+func (this *YgcOfficeProcess) ProcessOption(cfg *config.Config, section string, parentSection []string) {
 	if process, err := cfg.String(section, define.KEY_OPTION_process); err == nil {
 		if process == define.KEY_VALUE_readArray {
 			this.processReadArray(cfg, section)
@@ -252,7 +253,7 @@ func (this *YgcOfficeProcess) ProcessOption(cfg *config.Config, section string, 
 	}
 }
 
-func (this *YgcOfficeProcess) processItemProcess(cfg *config.Config, section string, parentSection string) {
+func (this *YgcOfficeProcess) processItemProcess(cfg *config.Config, section string, parentSection []string) {
 	var readEndCondition string
 	if e, err := cfg.String(section, define.KEY_OPTION_readEndCondition); err == nil {
 		readEndCondition = e
@@ -525,7 +526,7 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 			line++
 			this.target.Y++
 		}
-		if v1, ok := this.data[define.KEY_VALUE_src]; ok && v1.(*excel.ExcelObject).File == nil {
+		if this.sectionTrace[0]==Key_section_style {
 			//当源为空时设置样式
 			fmt.Printf("正在设置样式……\n")
 			for _, t := range tableMap {
@@ -572,7 +573,7 @@ func (this *YgcOfficeProcess) processWriteArray(cfg *config.Config, section stri
 	this.setReadData([]TableMapLineData{})
 }
 func (this *YgcOfficeProcess) writeNewValue(oldval string, newval interface{}, format string, cellName string) {
-	if v1, ok := this.data[define.KEY_VALUE_src]; ok && v1.(*excel.ExcelObject).File == nil {
+	if this.sectionTrace[0]==Key_section_style {
 		return
 	}
 		var wValue interface{}
@@ -1128,7 +1129,7 @@ func (this *YgcOfficeProcess) processFilter(cfg *config.Config, section string) 
 //	this.writeNewValue(val, v, format, excel.GetCellName(this.target.X, this.target.Y))
 //}
 
-func createNewChildProcessObject(cfg *config.Config, section string, src excel.ExcelObject, dst *excel.ExcelObject, target *excel.ExcelObject, readData []TableMapLineData, parentSection string) {
+func createNewChildProcessObject(cfg *config.Config, section string, src excel.ExcelObject, dst *excel.ExcelObject, target *excel.ExcelObject, readData []TableMapLineData, parentSection []string) {
 	var data = map[string]interface{}{}
 	data[define.KEY_VALUE_src] = &src
 	data[define.KEY_VALUE_dst] = dst
